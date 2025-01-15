@@ -1,0 +1,7 @@
+{
+    "require": {
+        "ehaerer/php-salesforce-rest-api": "^1.1",
+        "phpoffice/phpspreadsheet": "^1.12",
+        "vlucas/phpdotenv": "^5.6"
+    }
+}

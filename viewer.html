@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Equity Salesforce data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <style>
+        body{
+            font-family: arial;
+            box-sizing: border-box;
+            padding: 0px 5px 0px 5px;
+        }
+
+        #main{
+            margin: 20px auto;
+            text-align: center;
+            width: 100%;
+        }
+        a{
+            text-decoration: none;
+            color: RGBA(249,201,75,1);
+        }
+
+        div.table_container{
+            width: 90%;
+            max-width: 90%;
+            overflow-x: scroll;
+            margin: 0 auto;
+        }
+
+        table{
+            margin: 20px auto;
+            
+        }
+        tr:nth-child(even) {background: #CCC}
+        tr:nth-child(odd) {background: #FFF}
+        th,
+        td{
+            text-align: left;
+            padding: 10px 10px 10px 10px;
+        }
+        th{
+            background-color: RGBA(249,201,75,1);
+        }
+
+        .dlbutton{
+            min-width: 30px;
+            background-color: RGBA(249,201,75,0.6);
+            text-align: center;
+            border-radius: 5px;
+            height: 16px;
+            line-height: 16px;
+            vertical-align: middle;
+            padding: 7px 0px 7px 0px;
+            box-sizing: unset;
+        }
+        div.currentVersion{
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+	<div id="main">
+		<h2>Viewing batch <span id="batch"></span></h2>
+        <br/>
+        <a href='viewlist.html'>Go Back</a>
+
+        <div id="result">
+
+        </div>
+	</div>
+</body>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        let queryString = window.location.search;
+        const searchParams = new URLSearchParams(queryString);
+        
+        $(document).ready(function () {      
+
+            function initPanel() {
+
+                var batch = searchParams.get("batch")
+                //$("#mainview").attr("data-title", panel_title);
+
+                if(batch){
+
+                    $("#batch").text(batch);
+                    url = "realcon.php?action=view&batch=" + batch;
+
+                    $.ajax({
+                        type: 'GET',
+                        dataType: "json",
+                        url: url,
+                        data: {},
+                        statusCode: {
+                            200: function (res) {
+                                if(res.status==0){
+                                    var sfobj = res.data.sfobj;
+
+                                    $("#result").html("");
+                                    $("#result").append("<hr/>");
+
+                                    for(var i=0; i<Object.keys(sfobj).length; i++){
+                                        sfobj_target = sfobj[Object.keys(sfobj)[i]];
+                                        var table_heading = $("<h3/>").text(sfobj_target.title);
+                                        $("#result").append(table_heading);
+
+                                        var table = $("<table/>").attr("id",Object.keys(sfobj)[i]);
+                                        var tr = $("<tr/>");
+                                        var colummName = [];
+                                        for(var j=0; j<Object.keys(sfobj_target.field).length; j++){
+                                            colummName[j] = sfobj_target.field[j];
+                                            var th = $("<th/>").text(sfobj_target.field[j]);
+                                            tr.append(th);
+                                        }
+                                        table.append(tr);
+
+                                        var datarecord = res.data.data[Object.keys(sfobj)[i]].records;
+                                        for(var k=0; k<Object.keys(datarecord).length; k++){
+                                            var tr = $("<tr/>");
+                                            for(var j=0; j<colummName.length; j++){
+                                                var td = $("<td/>").text(datarecord[k][colummName[j]]);
+                                                tr.append(td);
+                                            }
+                                            table.append(tr);
+                                        }
+                                        var table_container = $("<div/>").attr("class", "table_container");
+                                        table_container.append(table);
+                                        $("#result").append(table_container);
+
+                                        $("#result").append("<hr/>");
+                                    }
+                                    
+                                    
+                                    //var base_image_url = "../upload"+res.data[0].base_image;
+                                    //$("#base_img").css('background-image', 'url("' + base_image_url + '")');
+                                    //$("#view_overlay").addClass(viewMode);
+                                    //$("#outer_frame").addClass(viewMode);
+                                    //$("#rs").text(Number(res.data[0].remaintest)); 
+                                }
+                                else{
+                                    console.log(res.error);
+                                    returnViewlist();
+                                }
+                            },
+                            404: function (res) {
+                                console.log("API connection error");
+                                returnViewlist();
+                            }
+                        }
+                    });
+                }
+                else{
+                    
+                }
+            }
+            initPanel();
+
+            function returnViewlist(){
+                window.open("viewlist.html", "_self");
+            }
+        });
+
+    </script>
+</body>
+
+</html>

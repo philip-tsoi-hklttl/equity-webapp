@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Equity Salesforce data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <style>
+        body{
+            font-family: arial;
+            box-sizing: border-box;
+            padding: 0px 5px 0px 5px;
+        }
+
+        #main{
+            margin: 20px auto;
+            text-align: center;
+            width: 100%;
+        }
+        a{
+            text-decoration: none;
+            color: RGBA(249,201,75,1);
+            cursor: pointer;
+        }
+
+        label{
+            cursor: pointer;
+        }
+
+        button{
+            margin-top: 10px;
+        }
+
+        #retrieve_result{
+            margin-top: 10px;
+        }
+
+        textarea{
+            min-width: 300px;
+            min-height: 80px;
+        }
+
+        table{
+            margin: 20px auto;
+            
+        }
+        tr:nth-child(even) {background: #CCC}
+        tr:nth-child(odd) {background: #FFF}
+        th,
+        td{
+            text-align: left;
+            padding: 10px 10px 10px 10px;
+        }
+        th{
+            background-color: RGBA(249,201,75,1);
+        }
+        a.okla{
+            padding: 5px 5px 5px 5px;
+            background-color: RGBA(100,100,100,1);
+            border-radius: 3px;
+            margin-right: 3px;
+        }
+            a.okla:hover{
+                opacity: 0.7;
+            }
+
+        .dlbutton{
+            min-width: 30px;
+            background-color: RGBA(249,201,75,0.6);
+            text-align: center;
+            border-radius: 5px;
+            height: 16px;
+            line-height: 16px;
+            vertical-align: middle;
+            padding: 7px 0px 7px 0px;
+            box-sizing: unset;
+        }
+        div.currentVersion{
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+	<div id="main">
+		<h2>Manual Retrieval</h2>
+		<div class="currentVersion">
+			<p>Please click on checkbox to execute data creation in database</p>
+            <input type="checkbox" id="retrieve_real" name="retrieve_real" value="1"/>
+            <label for="retrieve_real" id="retrieve_real_label">Create Database Record</label>
+            <br/>
+			<button id="retrieve">TEST RETRIEVAL STATUS</button>
+            <br/>
+			<textarea id="retrieve_result"></textarea>
+		</div>
+		<hr/>
+
+		<h4>Batch List</h4>
+		<p>A list of all batches retrieved</p>
+		<p>Reason = Manual Retrieve / Crontab / CDC(Change Data Capture)</p>
+		<table id="read">
+			<thead>
+				<tr>
+					<th>id</th>
+					<th>BATCH</th>
+					<th>REASON</th>
+					<th>ACTION</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
+		<hr/>
+		
+		<p> Created by <a href="mailto:philip.tsoi@hklttl.com"> PHILIP </a>, Latest Version 2024-07-11 </p>
+	</div>
+</body>
+
+<script type="text/javascript">
+	$(document).ready(function () {	
+			
+		function initReadList(){
+			$.ajax({
+				type: 'GET',
+				dataType: "json",
+				url: "realcon.php?action=history",
+				data: {
+				},
+				statusCode: {
+					200: function(res) {
+						var n  = res.data.length;
+						$("#read tbody").html("");
+                        
+						for(var i=0; i<n; i++){
+                            var buttonlist = [];
+                            buttonlist[0] = $("<div/>");
+                            buttonlist[1] = $("<a/>").attr("class", "okla").attr("data-batch",res.data[i].batch).attr("data-action", "view").html("<i class='fa-solid fa-arrow-right'></i>");
+                            buttonlist[2] = $("<a/>").attr("class", "okla").attr("data-batch",res.data[i].batch).attr("data-action", "export").html("<i class='fa-solid fa-file-export'></i>");
+                            for(j=1; j<=buttonlist.length; j++){
+                                buttonlist[0].append(buttonlist[j]);
+                            }
+							
+							var r = JSON.parse(res.data[i].extra);
+							
+
+							var k = $("<tr>").attr("data-batch", res.data[i].batch);							
+                            k.append($("<td>").html("<b>"+res.data[i].id+"</b>"));
+                            k.append($("<td>").html(res.data[i].batch));
+							k.append($("<td>").html(r.reason));
+                            //k.append($("<td>").html("<a class='okla' data-batch='"+res.data[i].batch+"'><i class='fa-solid fa-arrow-right'></i></a>"));
+                            k.append($("<td>").append(buttonlist[0]));
+
+							$("#read tbody").append(k);
+                            $(".okla").click(function(){
+                                okla_trigger($(this));
+                            })
+						}
+					}
+				}
+			});
+		}        
+		initReadList();
+
+        function retrieveFromSF(){
+            $("#retrieve").prop('disabled', true);
+            $("#retrieve_result").html("Please wait...");
+            
+            var action = (($("input[name='retrieve_real']").prop("checked")))?"create":"retrieve";
+            var url = "realcon.php?action="+action;
+
+			$.ajax({
+				type: 'GET',
+				dataType: "json",
+				url: url,
+				data: {
+				},
+				statusCode: {
+					200: function(res) {
+						
+                        console.log(res);
+                        if(action=="create"){
+                            var buttonlist = [];
+                            buttonlist[0] = $("<div/>");
+                            buttonlist[1] = $("<a/>").attr("class", "okla").attr("data-batch",res.batch).attr("data-action", "view").html("<i class='fa-solid fa-arrow-right'></i>");
+                            buttonlist[2] = $("<a/>").attr("class", "okla").attr("data-batch",res.batch).attr("data-action", "export").html("<i class='fa-solid fa-file-export'></i>");
+                            for(j=1; j<=buttonlist.length; j++){
+                                buttonlist[0].append(buttonlist[j]);
+                            }
+                            
+                            var k = $("<tr>").attr("data-batch", res.batch); 
+                            k.append($("<td>").html("<b>"+res.INSERT_ID+"</b>"));
+                            k.append($("<td>").html(res.batch));
+                            k.append($("<td>").html(res.reason));
+							//k.append($("<td>").html("<a class='okla' data-batch='"+res.batch+"'><i class='fa-solid fa-arrow-right'></i></a>"));
+                            k.append($("<td>").append(buttonlist[0]));
+							$("#read tbody").prepend(k);
+                            $(".okla").click(function(){
+                                okla_trigger($(this));
+                            })
+                            var message = "Retrieve success. Database entry created.";
+                        }
+                        else{
+                            var message = "Salesforce API Connection and Retrival functionable.";
+                        }
+                        $("#retrieve_result").html(message);
+
+                        $("#retrieve").prop('disabled', false);
+                        $("input[name='retrieve_real']").prop("checked", false);
+                        $("#retrieve").text("TEST RETRIEVAL STATUS");
+					}
+				}
+			});
+		}
+
+
+		
+		$("#retrieve").click(function(){
+			retrieveFromSF();
+		});
+
+        $("input[name='retrieve_real']").on("change", function(){
+            if($(this).prop("checked")){
+                $("#retrieve").text("REAL RETRIEVAL");
+            }
+            else{
+                $("#retrieve").text("TEST RETRIEVAL STATUS");
+            }
+        })
+
+        function okla_trigger(obj){
+            var batch = obj.attr("data-batch");
+            var action = obj.attr("data-action");
+
+            switch(action){
+                default: case "view":
+                    window.open("viewer.html?batch="+batch, "_self");
+                break;
+                case "export":
+                    window.open("realcon.php?action=exportexcel&batch="+batch, "_self");
+                break;
+            }
+        }
+
+		
+	});
+			
+</script>
+
+
+</html>
