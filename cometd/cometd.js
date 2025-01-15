@@ -11,7 +11,10 @@ const axios = require('axios');
         //'/event/Job_Item__ChangeEvent'
         '/data/ChangeEvents'
     ];
-    const execute_url = process.env.COMETD_EXE_URL;
+    
+    const cdc_run = process.env.COMETD_CDC_RUN;
+
+    const execute_url = process.env.COMETD_CDC_URL;
     const retrieval_url = process.env.COMETD_CRON_URL;
 
 	const term_run = process.env.COMETD_TERM_RUN;
@@ -47,20 +50,22 @@ const axios = require('axios');
 		if (cron_run == 1) { 
 			console.log("Cron run status = "+cron_run+", cron time = "+cron_hour+": "+cron_minute);
 		}
-        
-        subscriptionChannels.forEach(channel => {
-            sfconn.streaming.topic(channel).subscribe(function (message) {
-                console.log(JSON.stringify(message));
-                axios.get(execute_url)
-                    .then(response => {
-                        console.log(getCurrentDateTime()+': URL executed successfully');
-                        console.log(JSON.stringify(response.data));
-                    })
-                    .catch(error => {
-                        console.error(getCurrentDateTime()+': Error executing URL:', error.message);
-                    });
+
+        if (cdc_run == 1){
+            subscriptionChannels.forEach(channel => {
+                sfconn.streaming.topic(channel).subscribe(function (message) {
+                    console.log(JSON.stringify(message));
+                    axios.get(execute_url)
+                        .then(response => {
+                            console.log(getCurrentDateTime()+': URL executed successfully');
+                            console.log(JSON.stringify(response.data));
+                        })
+                        .catch(error => {
+                            console.error(getCurrentDateTime()+': Error executing URL:', error.message);
+                        });
+                });
             });
-        });
+        }
 
         // Periodically print a message every 10 seconds
         // setInterval(() => {
