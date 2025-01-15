@@ -22,6 +22,10 @@ const axios = require('axios');
 	const cron_hour = process.env.COMETD_CRON_HOUR;
 	const cron_minute = process.env.COMETD_CRON_MINUTE;
 
+
+    const cdcmimic_interval = process.env.COMETD_CDCMIMIC_INTERVAL;
+    const cdcmimic_url = process.env.COMETD_CDCMIMIC_URL;
+
     console.log(getCurrentDateTime()+': Setting up jsforce...');
 
     const sfconn = new jsforce.Connection({
@@ -90,6 +94,23 @@ const axios = require('axios');
             console.log(getCurrentDateTime() + ': Script is still running...');
 
         }, 60000); // 1 minute interval
+
+
+        if(cdcmimic_interval>0){
+            setInterval(() => {
+                const ct = getCurrentDateTime();
+                console.log(ct + ': Executing CDC Mimic script per '+cdcmimic_interval+'seconds');
+                axios.get(cdcmimic_url)
+                    .then(response => {
+                        console.log(ct+': URL executed successfully');
+                        console.log(JSON.stringify(response.data));
+                    })
+                    .catch(error => {
+                        console.error(ct+': Error executing URL:', error.message);
+                    });
+            }, cdcmimic_interval); // interval as defined
+        }
+
     });
 })();
 
