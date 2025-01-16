@@ -4,10 +4,7 @@ Usage:
 - fill in mysql, SF credentials
 - execute init.sql in appropriate database
 
-
-
 Notes:
-
 usage 
 realcon.php?action=___
 
@@ -21,13 +18,13 @@ Possible values for $action
 
 CREATE TABLE `JB_template` ( `id` VARCHAR(32) NOT NULL , `Name` VARCHAR(255) NOT NULL , `CompanyName__c` VARCHAR(255) NOT NULL , `Job_Classify__c` VARCHAR(255) NOT NULL , `CS_Checked__c` TINYINT(1) NOT NULL , `Client_ID__c` VARCHAR(255) NOT NULL ) ENGINE = InnoDB;
 
-
 CREATE TABLE `JI_template` ( `id` VARCHAR(32) NOT NULL , `Name` VARCHAR(255) NOT NULL , `Bulk_Date__c` VARCHAR(255) NOT NULL , `Job___c` VARCHAR(255) NOT NULL) ENGINE = InnoDB;
 
 TRUNCATE `batch`
 
-
-
+CDC Mimic (20250115)
+- add action to retrieve data per interval
+- edit .env COMETD_CDCMIMIC_INTERVAL to use, 0=disabled, value >0 will be interval in miliseconds
 
 CDC related (20240212)
 - cd cometd

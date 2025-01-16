@@ -5,29 +5,25 @@ const axios = require('axios');
     var jsforce = require('jsforce');
 
     const url = 'https://um1.lightning.force.com/cometd/'+process.env.SF_API_VERSION+'/';
-    //const channel = '/data/ChangeEvents';
     const subscriptionChannels = [
-        //'/event/Job__ChangeEvent',
-        //'/event/Job_Item__ChangeEvent'
         '/data/ChangeEvents'
     ];
-    
-    const cdc_run = process.env.COMETD_CDC_RUN;
 
+    const cdc_run = process.env.COMETD_CDC_RUN;
     const execute_url = process.env.COMETD_CDC_URL;
     const retrieval_url = process.env.COMETD_CRON_URL;
-
-	const term_run = process.env.COMETD_TERM_RUN;
-	const term_hour = process.env.COMETD_TERM_HOUR;
-	const term_minute = process.env.COMETD_TERM_MINUTE;
-
-	const cron_run = process.env.COMETD_CRON_RUN;
-	const cron_hour = process.env.COMETD_CRON_HOUR;
-	const cron_minute = process.env.COMETD_CRON_MINUTE;
-
-
+    const term_run = process.env.COMETD_TERM_RUN;
+    const term_hour = process.env.COMETD_TERM_HOUR;
+    const term_minute = process.env.COMETD_TERM_MINUTE;
+    const cron_run = process.env.COMETD_CRON_RUN;
+    const cron_hour = process.env.COMETD_CRON_HOUR;
+    const cron_minute = process.env.COMETD_CRON_MINUTE;
     const cdcmimic_interval = process.env.COMETD_CDCMIMIC_INTERVAL;
     const cdcmimic_url = process.env.COMETD_CDCMIMIC_URL;
+    const cdc_defer = process.env.CDC_DEFER;
+
+    let lastExecutionTime = 0;
+    let deferredCallTimeout = null;
 
     console.log(getCurrentDateTime()+': Setting up jsforce...');
 
@@ -39,30 +35,36 @@ const axios = require('axios');
         }
     });
 
-    
     console.log(getCurrentDateTime()+': Acquiring SF session Id...');
 
     sfconn.login(process.env.SF_USERNAME, process.env.SF_PASSWORD + process.env.SF_SECURITY, function (err, userInfo) {
         console.log(getCurrentDateTime()+': SF session id acquired: ' + sfconn.accessToken);
         console.log('------------------------');
-		
-		const currentTime = new Date();
-		if (cron_run == 1) { 
-			console.log("Cron run status = "+cron_run+", cron time = "+cron_hour+": "+cron_minute);
-		}
+
+        const currentTime = new Date();
+        if (cron_run == 1) {
+            console.log("Cron run status = "+cron_run+", cron time = "+cron_hour+": "+cron_minute);
+        }
 
         if (cdc_run == 1){
             subscriptionChannels.forEach(channel => {
                 sfconn.streaming.topic(channel).subscribe(function (message) {
                     console.log(JSON.stringify(message));
-                    axios.get(execute_url)
-                        .then(response => {
-                            console.log(getCurrentDateTime()+': URL executed successfully');
-                            console.log(JSON.stringify(response.data));
-                        })
-                        .catch(error => {
-                            console.error(getCurrentDateTime()+': Error executing URL:', error.message);
-                        });
+                    const now = Date.now();
+                    if (now - lastExecutionTime >= cdc_defer) {
+                        // If the interval has passed, execute the API call immediately
+                        lastExecutionTime = now;
+                        executeApiCall();
+                    } else {
+                        // If the interval has not passed, defer the API call
+                        console.log(getCurrentDateTime()+': Deferring API call due to rate limiting');
+                        if (deferredCallTimeout) {
+                            // Clear any existing deferred call
+                            clearTimeout(deferredCallTimeout);
+                        }
+                        // Schedule the API call to run after the deferred interval
+                        deferredCallTimeout = setTimeout(executeApiCall, cdc_defer - (now - lastExecutionTime));
+                    }
                 });
             });
         }
@@ -73,17 +75,14 @@ const axios = require('axios');
         // }, 10000); // 10 seconds interval
 
         // Check for termination time every minute
-		
         setInterval(() => {
             const currentTime = new Date();
-			if (term_run == 1 && currentTime.getHours() == term_hour && currentTime.getMinutes() == term_minute) { 
-			//if (currentTime.getHours() === 14 && currentTime.getMinutes() === 35) { 
+            if (term_run == 1 && currentTime.getHours() == term_hour && currentTime.getMinutes() == term_minute) {
                 console.log(getCurrentDateTime() + ': Terminating script...');
-                process.exit(); 
-            }	
-			
-			if (cron_run == 1 && currentTime.getHours() == cron_hour && currentTime.getMinutes() == cron_minute) { 
-			//if (currentTime.getHours() === 0 && currentTime.getMinutes() === 30) { 
+                process.exit();
+            }
+
+            if (cron_run == 1 && currentTime.getHours() == cron_hour && currentTime.getMinutes() == cron_minute) {
                 console.log(getCurrentDateTime() + ': Executing periodic retrieval');
                 axios.get(retrieval_url)
                     .then(response => {
@@ -94,12 +93,10 @@ const axios = require('axios');
                         console.error(getCurrentDateTime()+': Error executing URL:', error.message);
                     });
             }
-			
-			//console.log(currentTime.getHours()+":"+currentTime.getMinutes() + ': Script is still running...');
+
             console.log(getCurrentDateTime() + ': Script is still running...');
 
         }, 60000); // 1 minute interval
-
 
         if(cdcmimic_interval>0){
             setInterval(() => {
@@ -115,10 +112,19 @@ const axios = require('axios');
                     });
             }, cdcmimic_interval); // interval as defined
         }
-
     });
-})();
 
+    function executeApiCall() {
+        axios.get(execute_url)
+            .then(response => {
+                console.log(getCurrentDateTime()+': URL executed successfully');
+                console.log(JSON.stringify(response.data));
+            })
+            .catch(error => {
+                console.error(getCurrentDateTime()+': Error executing URL:', error.message);
+            });
+    }
+})();
 
 function getCurrentDateTime(mode="full") {
     const now = new Date();
@@ -133,6 +139,6 @@ function getCurrentDateTime(mode="full") {
     }
     else{
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    }    
+    }
     //return new Date().toISOString();
 }
