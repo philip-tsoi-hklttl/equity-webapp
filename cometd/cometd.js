@@ -1,17 +1,18 @@
 require('dotenv').config({ path: '../.env' });
 const axios = require('axios');
+const mysql = require('mysql');
 
 (function () {
     var jsforce = require('jsforce');
 
-    const url = 'https://um1.lightning.force.com/cometd/'+process.env.SF_API_VERSION+'/';
+    const url = 'https://um1.lightning.force.com/cometd/' + process.env.SF_API_VERSION + '/';
     const subscriptionChannels = [
         '/data/ChangeEvents'
     ];
 
     const cdc_run = process.env.COMETD_CDC_RUN;
-    const execute_url = process.env.COMETD_CDC_URL;
-    const retrieval_url = process.env.COMETD_CRON_URL;
+    const execute_url = process.env.COMETD_EXEC_URL;
+    //const retrieval_url = process.env.COMETD_CRON_URL;
     const term_run = process.env.COMETD_TERM_RUN;
     const term_hour = process.env.COMETD_TERM_HOUR;
     const term_minute = process.env.COMETD_TERM_MINUTE;
@@ -20,12 +21,12 @@ const axios = require('axios');
     const cron_minute = process.env.COMETD_CRON_MINUTE;
     const cdcmimic_interval = process.env.COMETD_CDCMIMIC_INTERVAL;
     const cdcmimic_url = process.env.COMETD_CDCMIMIC_URL;
-    const cdc_defer = process.env.CDC_DEFER;
+    const cdc_defer = process.env.COMETD_CDC_DEFER;
 
     let lastExecutionTime = 0;
     let deferredCallTimeout = null;
 
-    console.log(getCurrentDateTime()+': Setting up jsforce...');
+    console.log(getCurrentDateTime() + ': Setting up jsforce...');
 
     const sfconn = new jsforce.Connection({
         oauth2: {
@@ -35,18 +36,18 @@ const axios = require('axios');
         }
     });
 
-    console.log(getCurrentDateTime()+': Acquiring SF session Id...');
+    console.log(getCurrentDateTime() + ': Acquiring SF session Id...');
 
     sfconn.login(process.env.SF_USERNAME, process.env.SF_PASSWORD + process.env.SF_SECURITY, function (err, userInfo) {
-        console.log(getCurrentDateTime()+': SF session id acquired: ' + sfconn.accessToken);
+        console.log(getCurrentDateTime() + ': SF session id acquired: ' + sfconn.accessToken);
         console.log('------------------------');
 
         const currentTime = new Date();
         if (cron_run == 1) {
-            console.log("Cron run status = "+cron_run+", cron time = "+cron_hour+": "+cron_minute);
+            console.log("Cron run status = " + cron_run + ", cron time = " + cron_hour + ": " + cron_minute);
         }
 
-        if (cdc_run == 1){
+        if (cdc_run == 1) {
             subscriptionChannels.forEach(channel => {
                 sfconn.streaming.topic(channel).subscribe(function (message) {
                     console.log(JSON.stringify(message));
@@ -54,16 +55,22 @@ const axios = require('axios');
                     if (now - lastExecutionTime >= cdc_defer) {
                         // If the interval has passed, execute the API call immediately
                         lastExecutionTime = now;
-                        executeApiCall();
+                        console.log(getCurrentDateTime() + ': Executing API call immediately');
+                        //executeApiCall();
+                        executeApiCall("cdc");
                     } else {
                         // If the interval has not passed, defer the API call
-                        console.log(getCurrentDateTime()+': Deferring API call due to rate limiting');
+                        console.log(getCurrentDateTime() + ': Deferring API call due to rate limiting');
                         if (deferredCallTimeout) {
                             // Clear any existing deferred call
                             clearTimeout(deferredCallTimeout);
                         }
                         // Schedule the API call to run after the deferred interval
-                        deferredCallTimeout = setTimeout(executeApiCall, cdc_defer - (now - lastExecutionTime));
+                        deferredCallTimeout = setTimeout(() => {
+                            console.log(getCurrentDateTime() + ': Executing deferred API call');
+                            //executeApiCall();
+                            executeApiCall("cdc");
+                        }, cdc_defer - (now - lastExecutionTime));
                     }
                 });
             });
@@ -84,49 +91,93 @@ const axios = require('axios');
 
             if (cron_run == 1 && currentTime.getHours() == cron_hour && currentTime.getMinutes() == cron_minute) {
                 console.log(getCurrentDateTime() + ': Executing periodic retrieval');
+                executeApiCall("crontab");
+                /*
                 axios.get(retrieval_url)
                     .then(response => {
-                        console.log(getCurrentDateTime()+': URL executed successfully');
+                        console.log(getCurrentDateTime() + ': URL executed successfully');
                         console.log(JSON.stringify(response.data));
+
+                        // Cleanup function to keep the latest 500 rows in the batch table
+                        //cleanupBatchTable();
                     })
                     .catch(error => {
-                        console.error(getCurrentDateTime()+': Error executing URL:', error.message);
+                        console.error(getCurrentDateTime() + ': Error executing URL:', error.message);
                     });
+                */
             }
 
             console.log(getCurrentDateTime() + ': Script is still running...');
 
         }, 60000); // 1 minute interval
 
-        if(cdcmimic_interval>0){
+        if (cdcmimic_interval > 0) {
             setInterval(() => {
                 const ct = getCurrentDateTime();
-                console.log(ct + ': Executing CDC Mimic script per '+cdcmimic_interval+'seconds');
+                console.log(ct + ': Executing CDC Mimic script per ' + cdcmimic_interval + 'seconds');
+                executeApiCall("cdcmimic");
+                
+                /*
                 axios.get(cdcmimic_url)
                     .then(response => {
-                        console.log(ct+': URL executed successfully');
+                        console.log(ct + ': URL executed successfully');
                         console.log(JSON.stringify(response.data));
                     })
                     .catch(error => {
-                        console.error(ct+': Error executing URL:', error.message);
+                        console.error(ct + ': Error executing URL:', error.message);
                     });
+                */
             }, cdcmimic_interval); // interval as defined
         }
     });
 
-    function executeApiCall() {
-        axios.get(execute_url)
+    function executeApiCall(reason) {
+        console.log(getCurrentDateTime() + ': API call execution time epoch: ' + Date.now());
+        axios.get(execute_url+"&reason="+reason)
             .then(response => {
-                console.log(getCurrentDateTime()+': URL executed successfully');
-                console.log(JSON.stringify(response.data));
+                console.log(getCurrentDateTime() + ': URL executed successfully. Reason = '+reason);
+                console.log("Retrieved batch number = "+JSON.stringify(response.batch));
             })
             .catch(error => {
-                console.error(getCurrentDateTime()+': Error executing URL:', error.message);
+                console.error(getCurrentDateTime() + ': Error executing URL:', error.message);
             });
     }
+
+    // Cleanup function to keep the latest 500 rows in the batch table
+    function cleanupBatchTable() {
+        const connection = mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME
+        });
+
+        connection.connect();
+
+        const query = `
+            DELETE FROM batch
+            WHERE id NOT IN (
+                SELECT id
+                FROM (
+                    SELECT id
+                    FROM batch
+                    ORDER BY id DESC
+                    LIMIT 500
+                ) as subquery
+            );
+        `;
+
+        connection.query(query, (error, results, fields) => {
+            if (error) throw error;
+            console.log(getCurrentDateTime() + ': Cleanup completed. Latest 500 rows retained.');
+        });
+
+        connection.end();
+    }
+
 })();
 
-function getCurrentDateTime(mode="full") {
+function getCurrentDateTime(mode = "full") {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
@@ -134,10 +185,9 @@ function getCurrentDateTime(mode="full") {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    if(mode=="short"){
+    if (mode == "short") {
         return `${hours}:${minutes}`;
-    }
-    else{
+    } else {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
     //return new Date().toISOString();

@@ -10,8 +10,6 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-
-
 // STEP 0: preparation
 
 if ($_SERVER['CONTENT_TYPE'] != 'application/json') {
@@ -34,7 +32,6 @@ $timestart = microtime(true);
 $result['status'] = -1;
 $result['error'] = 'Fatal error.';
 
-
 switch ($action) {
     default: case "view":
         //provide batch number then list
@@ -52,7 +49,6 @@ switch ($action) {
         $result["data"]["status"] = $resultView[0]["status"];
         $result["data"]["create_time"] = $resultView[0]["create_time"];
 
-        
         if(count($resultView)>=1){
             $result['status'] = 0;
             $result['error'] = 'View data from database success';
@@ -65,8 +61,8 @@ switch ($action) {
 
     case "exportexcel":
         $spreadsheet = new Spreadsheet();
-		
-		$batch = isset($_GET['batch'])?$_GET['batch']:"19700101-000000";
+
+        $batch = isset($_GET['batch'])?$_GET['batch']:"19700101-000000";
         $sqlView = "SELECT * FROM batch WHERE batch='".$batch."' AND 1 LIMIT 1";
         $debugObj["sql"] = $sqlView;
         $resultView = $pdo->query($sqlView)->fetchAll();
@@ -78,40 +74,40 @@ switch ($action) {
         //$debugObj["tablelist"] = $tablelist;
         //$debugObj["sfobj"] = $sfobj;
         $export = (1==1);
-		
+
         for($i=0; $i<count($tablelist); $i++){
-            
-			if($i==0){
+
+            if($i==0){
                 ${"sheet_".$i} = $spreadsheet->getActiveSheet();
             }
             else{
                 ${"sheet_".$i} = $spreadsheet->createSheet();
             }
-            
-			$sfobj_target = $sfobj[$tablelist[$i]];
+
+            $sfobj_target = $sfobj[$tablelist[$i]];
             $table_heading = $sfobj_target["title"];
             ${"sheet_".$i}->setTitle($sfobj_target["title"]);
             ${"fieldlist_".$i} = "";
-			
-			for($j=0; $j<count($sfobj_target["field"]); $j++){
+
+            for($j=0; $j<count($sfobj_target["field"]); $j++){
                 ${"fieldlist_".$i}.= $sfobj_target["field"][$j]." ";
                 //${"sheet_".$i}->setCellValueByColumnAndRow($j+1, 1, $sfobj_target["field"][$j]);
-				${"sheet_".$i}->setCellValue([$j+1, 1], $sfobj_target["field"][$j]);
-            }			
-			
+                ${"sheet_".$i}->setCellValue([$j+1, 1], $sfobj_target["field"][$j]);
+            }
+
             ${"datarecord_".$i} = $data[$tablelist[$i]]["records"];
             //$debugObj["datarecord_".$i] =  ${"datarecord_".$i};
-			
+
             for($k=0; $k<count(${"datarecord_".$i}); $k++){
                 for($j=0; $j<count($sfobj_target["field"]); $j++){
                     ${"testttt_".$i."_".$k."_".$j} = ${"datarecord_".$i}[$k][$sfobj_target["field"][$j]];
                     //$debugObj["testttt_".$i."_".$k."_".$j] =  ${"testttt_".$i."_".$k."_".$j};
                     //${"sheet_".$i}->setCellValueByColumnAndRow($j+1, $k+2, ${"datarecord_".$i}[$k][$sfobj_target["field"][$j]] );
-					${"sheet_".$i}->setCellValue([$j+1, $k+2], ${"datarecord_".$i}[$k][$sfobj_target["field"][$j]] );
+                    ${"sheet_".$i}->setCellValue([$j+1, $k+2], ${"datarecord_".$i}[$k][$sfobj_target["field"][$j]] );
                 }
             }
         }
-		
+
         if($export){
             $filename = 'batch-'.$batch.'.xlsx';
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -128,11 +124,13 @@ switch ($action) {
 
             die();
         }
-		
+
     break;
 
     case "history":
-        $sqlHistory = "SELECT * FROM batch WHERE 1 ORDER BY id DESC";
+        $from = isset($_GET['from']) ? intval($_GET['from']) : 0;
+        $to = isset($_GET['to']) ? intval($_GET['to']) : 50;
+        $sqlHistory = "SELECT id, batch, create_time, extra FROM batch ORDER BY id DESC LIMIT $from, $to";
         $debugObj["sql"] = $sqlHistory;
         $resultHistory = $pdo->query($sqlHistory)->fetchAll();
 
@@ -140,7 +138,7 @@ switch ($action) {
             $result["data"][$i]["id"] = $resultHistory[$i]["id"];
             $result["data"][$i]["batch"] = $resultHistory[$i]["batch"];
             $result["data"][$i]["create_time"] = $resultHistory[$i]["create_time"];
-			$result["data"][$i]["extra"] = $resultHistory[$i]["extra"];
+            $result["data"][$i]["extra"] = $resultHistory[$i]["extra"];
         }
 
         if(count($resultHistory)>=1){
@@ -151,6 +149,16 @@ switch ($action) {
             $result['error'] = 'Database Error';
         }
     break;
+
+    case "historyCount":
+        $sqlCount = "SELECT COUNT(id) as total FROM batch";
+        $debugObj["sql"] = $sqlCount;
+        $resultCount = $pdo->query($sqlCount)->fetch();
+        $result['total'] = $resultCount['total'];
+        $result['status'] = 0;
+        $result['error'] = 'Get total count from database success';
+    break;
+
     case "create": case "retrieve":
         // STEP 1: SF side Authorization, get bearer token
         $salesforce_opt = [
@@ -179,18 +187,18 @@ switch ($action) {
         // STEP 2: Get all items in specified SF objects (Using SF library)
 
         $salesforceFunctions = new SalesforceFunctions($instanceUrl, $accessToken, "v".SF_API_VERSION);
-		
+
         $result["sfobj"] = $sfobj;
 
         $data_pass = true;
         foreach ($sfobj as $k => $v){
-			//$result["d_".$v["title"]] = $salesforceFunctions->describe($v["title"]);
-			
+            // $result["d_".$v["title"]] = $salesforceFunctions->describe($v["title"]);
+
             ${"query_".$k} = "SELECT ";
             for($i=0; $i<count($v["field"]); $i++){
-				//$result["sfobj"][$v["title"]]["datatype"][$i] = "PKLA";
-				//$sfobj["datatype"][$i] = $salesforceFunctions->describe($v);
-				
+                // $result["sfobj"][$v["title"]]["datatype"][$i] = "PKLA";
+                // $sfobj["datatype"][$i] = $salesforceFunctions->describe($v);
+
                 ${"query_".$k}.= $v["field"][$i];
                 if($i<count($v["field"])-1){
                     ${"query_".$k}.= ", ";
@@ -203,11 +211,10 @@ switch ($action) {
             if(${"data_".$k}!=null){
                 $result["data"][$k] = ${"data_".$k};
             }
-			
-			
+
+
         }
-		
-		
+
 
         if($data_pass){
             $result['status'] = 0;
@@ -228,29 +235,27 @@ switch ($action) {
             // 2) crontab
             // 3) cdc
             $extra['reason'] = $reason;
-			$result['reason'] = $reason;
-            
-			/*
-            $sql_Insert = "INSERT INTO batch(batch, sfobj, data, debug, extra, status) VALUES(";
+            $result['reason'] = $reason;
+
+            /* $sql_Insert = "INSERT INTO batch(batch, sfobj, data, debug, extra, status) VALUES(";
             $sql_Insert.= "'".$result['batch']."',";
             $sql_Insert.= "'".jSONTOSTRING($result["sfobj"])."',";
             $sql_Insert.= "'".jSONTOSTRING($result["data"])."',";
             $sql_Insert.= "'".jSONTOSTRING($debugObj)."',";
             $sql_Insert.= "'".jSONTOSTRING($extra)."',";
             $sql_Insert.= $result['status'];
-            $sql_Insert.= ");";
-			*/
-			$sql_Insert = "INSERT INTO batch (batch, sfobj, data, debug, extra, status) VALUES (?, ?, ?, ?, ?, ?)";
-			$stmt = $pdo->prepare($sql_Insert);
-			$result_Insert = $stmt->execute([
-				$result['batch'], 
-				json_encode($result["sfobj"]), 
-				json_encode($result["data"]), 
-				json_encode($debugObj), 
-				json_encode($extra), 
-				$result['status']
-			]);
-			$result["INSERT_ID"] = $pdo->lastInsertId();
+            $sql_Insert.= ");"; */
+            $sql_Insert = "INSERT INTO batch (batch, sfobj, data, debug, extra, status) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $pdo->prepare($sql_Insert);
+            $result_Insert = $stmt->execute([
+                $result['batch'],
+                json_encode($result["sfobj"]),
+                json_encode($result["data"]),
+                json_encode($debugObj),
+                json_encode($extra),
+                $result['status']
+            ]);
+            $result["INSERT_ID"] = $pdo->lastInsertId();
 
 
             $debugObj["sql_Insert"] = $sql_Insert;
@@ -261,53 +266,52 @@ switch ($action) {
             //$result_Insert = $pdo->prepare($sql_Insert)->execute();
             //$result["INSERT_ID"] = $INSERT_ID = $pdo->lastInsertId();
 
-			//$sql_Insert = "INSERT INTO batch(batch, sfobj, data, debug, status) VALUES(?,?,?,?,?);";
-			//$debugObj["sql_Insert"] = $sql_Insert;
-            //$debugObj["time_start"] = $timestart;
-            //$debugObj["time_now"] = $timenow;
-            //$debugObj["time_spent"] = $timenow - $timestart;
+            // $sql_Insert = "INSERT INTO batch(batch, sfobj, data, debug, status) VALUES(?,?,?,?,?);";
+            // $debugObj["sql_Insert"] = $sql_Insert;
+            // $debugObj["time_start"] = $timestart;
+            // $debugObj["time_now"] = $timenow;
+            // $debugObj["time_spent"] = $timenow - $timestart;
 
-            
 
-            //$result_Insert = $pdo->prepare($sql_Insert)->execute([
-                //$result['batch'], 
-                //json_encode($result["sfobj"]),
-                //json_encode($result["data"]), 
-                //json_encode($debugObj),
-                //$result['status']
-            //]);
-            //$result["INSERT_ID"] = $INSERT_ID = $pdo->lastInsertId();
-			
-			// STEP 3.5: Run the "buildtable" script after the original script in step 3 has been completed
-			$buildTableStatements = buildTable("");
-			
-			$result["PDOSTATEMENTS"] = $buildTableStatements;
-			// Execute SQL statements
-			foreach ($buildTableStatements as $sql) {
-				$pdo->prepare($sql)->execute();
-			}
-			
+            // $result_Insert = $pdo->prepare($sql_Insert)->execute([
+            //     $result['batch'],
+            //     json_encode($result["sfobj"]),
+            //     json_encode($result["data"]),
+            //     json_encode($debugObj),
+            //     $result['status']
+            // ]);
+            // $result["INSERT_ID"] = $INSERT_ID = $pdo->lastInsertId();
+
+            // STEP 3.5: Run the "buildtable" script after the original script in step 3 has been completed
+            $buildTableStatements = buildTable("");
+
+            $result["PDOSTATEMENTS"] = $buildTableStatements;
+            // Execute SQL statements
+            foreach ($buildTableStatements as $sql) {
+                $pdo->prepare($sql)->execute();
+            }
+
         }
 
 
     break;
 
-	case "buildtable":
-		
-		if (isset($_GET['batch'])) {
-			$batch = $_GET['batch'];
-		} else {
-			$batch = "";
-		}
-		
-		$buildTableStatements = buildTable($batch);
-		$result["buildTableStatements"] = $buildTableStatements;
-		// Execute SQL statements
-		foreach ($buildTableStatements as $sql) {
-			$pdo->prepare($sql)->execute();
-		}
-		
-		$result['status'] = 0;
+    case "buildtable":
+
+        if (isset($_GET['batch'])) {
+            $batch = $_GET['batch'];
+        } else {
+            $batch = "";
+        }
+
+        $buildTableStatements = buildTable($batch);
+        $result["buildTableStatements"] = $buildTableStatements;
+        // Execute SQL statements
+        foreach ($buildTableStatements as $sql) {
+            $pdo->prepare($sql)->execute();
+        }
+
+        $result['status'] = 0;
         $result['error'] = 'Build Table success';
 
     break;
@@ -327,8 +331,6 @@ else{
     $json = json_encode($result, JSON_PRETTY_PRINT);
 }
 echo $json;
-
-
 
 
 function JSONTOSTRING($json_object){
@@ -371,63 +373,63 @@ function getFieldTypes($metadata, $fields) {
 
 
 function buildTable($batch) {
-	global $pdo;
-	if ($batch!="") {
-		$sqlView = "SELECT * FROM batch WHERE id='" . $batch . "' AND 1 LIMIT 1";
-		
-	} else {
-		$sqlView = "SELECT * FROM batch WHERE 1 ORDER BY id DESC LIMIT 1";
-	}	
+    global $pdo;
+    if ($batch!="") {
+        $sqlView = "SELECT * FROM batch WHERE id='" . $batch . "' AND 1 LIMIT 1";
 
-	$debugObj["sql"] = $sqlView;
-	$resultView = $pdo->query($sqlView)->fetchAll();
+    } else {
+        $sqlView = "SELECT * FROM batch WHERE 1 ORDER BY id DESC LIMIT 1";
+    }
 
-	$sfobj = json_decode($resultView[0]["sfobj"], true);
-	$data = json_decode($resultView[0]["data"], true);
+    $debugObj["sql"] = $sqlView;
+    $resultView = $pdo->query($sqlView)->fetchAll();
 
-	$tablelist = array_keys($sfobj);
+    $sfobj = json_decode($resultView[0]["sfobj"], true);
+    $data = json_decode($resultView[0]["data"], true);
 
-	$sqlStatements = [];
-	$sqlStatements[] = "CALL drop_non_batch_tables();";
+    $tablelist = array_keys($sfobj);
 
-
-	// Generate CREATE TABLE and INSERT INTO statements
-	foreach ($tablelist as $tableObj) {
-		$sfobj_target = $sfobj[$tableObj];
-		$fields = $sfobj_target["field"];
-		$datatypes = $sfobj_target["datatype"];
-		$tableName = $sfobj_target["title"];
-		
-		// Create Table statement
-		$sqlCreate = "CREATE TABLE IF NOT EXISTS `$tableName` (\n";
-		$field_definitions = [];
-		
-		for($i=0; $i<count($fields); $i++){
-			$field_definitions[] = "`".$fields[$i]."` ".$datatypes[$i];
-			//$field_definitions[] = "`AAA`";
-		}
-
-		foreach ($fields as $field) {
-			//$field_definitions[] = "`$field` VARCHAR(255)";
-		}
+    $sqlStatements = [];
+    $sqlStatements[] = "CALL drop_non_batch_tables();";
 
 
-		$sqlCreate .= implode(",\n", $field_definitions);
-		$sqlCreate .= "\n);";
+    // Generate CREATE TABLE and INSERT INTO statements
+    foreach ($tablelist as $tableObj) {
+        $sfobj_target = $sfobj[$tableObj];
+        $fields = $sfobj_target["field"];
+        $datatypes = $sfobj_target["datatype"];
+        $tableName = $sfobj_target["title"];
 
-		$sqlStatements[] = $sqlCreate;
+        // Create Table statement
+        $sqlCreate = "CREATE TABLE IF NOT EXISTS `$tableName` (\n";
+        $field_definitions = [];
 
-		// Insert Data statements
-		$dataRecords = $data[$tableObj]["records"];
+        for($i=0; $i<count($fields); $i++){
+            $field_definitions[] = "`".$fields[$i]."` ".$datatypes[$i];
+            //$field_definitions[] = "`AAA`";
+        }
 
-		foreach ($dataRecords as $record) {
-			$fieldList = implode(", ", array_map(function($field) { return "`$field`"; }, $fields));
-			$valueList = implode(", ", array_map(function($field) use ($record, $pdo) { return $pdo->quote($record[$field]); }, $fields));
-			$sqlInsert = "INSERT INTO `$tableName` ($fieldList) VALUES ($valueList);";
-			$sqlStatements[] = $sqlInsert;
-		}
-	}
-	
-	return $sqlStatements;
+        foreach ($fields as $field) {
+            //$field_definitions[] = "`$field` VARCHAR(255)";
+        }
+
+
+        $sqlCreate .= implode(",\n", $field_definitions);
+        $sqlCreate .= "\n);";
+
+        $sqlStatements[] = $sqlCreate;
+
+        // Insert Data statements
+        $dataRecords = $data[$tableObj]["records"];
+
+        foreach ($dataRecords as $record) {
+            $fieldList = implode(", ", array_map(function($field) { return "`$field`"; }, $fields));
+            $valueList = implode(", ", array_map(function($field) use ($record, $pdo) { return $pdo->quote($record[$field]); }, $fields));
+            $sqlInsert = "INSERT INTO `$tableName` ($fieldList) VALUES ($valueList);";
+            $sqlStatements[] = $sqlInsert;
+        }
+    }
+
+    return $sqlStatements;
 
 }

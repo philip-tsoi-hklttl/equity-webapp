@@ -42,7 +42,7 @@
 
         table{
             margin: 20px auto;
-            
+
         }
         tr:nth-child(even) {background: #CCC}
         tr:nth-child(odd) {background: #FFF}
@@ -79,59 +79,104 @@
             margin-top: 20px;
             margin-bottom: 20px;
         }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            padding: 10px;
+        }
+        .pagination a {
+            margin: 0 5px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            text-decoration: none;
+            color: #000;
+        }
+        .pagination a.active {
+            background-color: RGBA(249,201,75,1);
+            color: #fff;
+        }
+        .pagination input {
+            width: 40px;
+            text-align: center;
+        }
+        .pagination select {
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
-	<div id="main">
-		<h2>Manual Retrieval</h2>
-		<div class="currentVersion">
-			<p>Please click on checkbox to execute data creation in database</p>
+    <div id="main">
+        <h2>Manual Retrieval</h2>
+        <div class="currentVersion">
+            <p>Please click on checkbox to execute data creation in database</p>
             <input type="checkbox" id="retrieve_real" name="retrieve_real" value="1"/>
             <label for="retrieve_real" id="retrieve_real_label">Create Database Record</label>
             <br/>
-			<button id="retrieve">TEST RETRIEVAL STATUS</button>
+            <button id="retrieve">TEST RETRIEVAL STATUS</button>
             <br/>
-			<textarea id="retrieve_result"></textarea>
-		</div>
-		<hr/>
+            <textarea id="retrieve_result"></textarea>
+        </div>
+        <hr/>
 
-		<h4>Batch List</h4>
-		<p>A list of all batches retrieved</p>
-		<p>Reason = Manual Retrieve / Crontab / CDC(Change Data Capture)</p>
-		<table id="read">
-			<thead>
-				<tr>
-					<th>id</th>
-					<th>BATCH</th>
-					<th>REASON</th>
-					<th>ACTION</th>
-				</tr>
-			</thead>
-			<tbody>
-			</tbody>
-		</table>
-		<hr/>
-		
-		<p> Created by <a href="mailto:philip.tsoi@hklttl.com"> PHILIP </a>, Latest Version 2024-07-11 </p>
-	</div>
+        <h4>Batch List</h4>
+        <p>A list of all batches retrieved</p>
+        <p>Reason = Manual Retrieve / Crontab / CDC(Change Data Capture)</p>
+        <table id="read">
+            <thead>
+                <tr>
+                    <th>id</th>
+                    <th>BATCH</th>
+                    <th>REASON</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <div class="pagination">
+            <a href="#" class="page-link" id="prev-page"><i class="fas fa-arrow-left"></i></a>
+            Page <input type="number" name="pagenumber" value="1" min="1"> / <span class="pagetotal"></span>
+            <a href="#" class="page-link" id="next-page"><i class="fas fa-arrow-right"></i></a>
+            <select id="rowsPerPage">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+            </select> entries per page
+        </div>
+        <hr/>
+
+        <p> Created by <a href="mailto:philip.tsoi@hklttl.com"> PHILIP </a>, Latest Version 2024-07-11 </p>
+    </div>
 </body>
 
 <script type="text/javascript">
-	$(document).ready(function () {	
-			
-		function initReadList(){
-			$.ajax({
-				type: 'GET',
-				dataType: "json",
-				url: "realcon.php?action=history",
-				data: {
-				},
-				statusCode: {
-					200: function(res) {
-						var n  = res.data.length;
-						$("#read tbody").html("");
-                        
-						for(var i=0; i<n; i++){
+    $(document).ready(function () {
+
+        let currentPage = 1;
+        let rowsPerPage = 50;
+        let totalPages = 1;
+
+        function initReadList(page = 1) {
+            const from = (page - 1) * rowsPerPage;
+            const to = rowsPerPage;
+
+            $.ajax({
+                type: 'GET',
+                dataType: "json",
+                url: "realcon.php?action=history",
+                data: {
+                    from: from,
+                    to: to
+                },
+                statusCode: {
+                    200: function(res) {
+                        var n  = res.data.length;
+                        $("#read tbody").html("");
+
+                        for(var i=0; i<n; i++){
                             var buttonlist = [];
                             buttonlist[0] = $("<div/>");
                             buttonlist[1] = $("<a/>").attr("class", "okla").attr("data-batch",res.data[i].batch).attr("data-action", "view").html("<i class='fa-solid fa-arrow-right'></i>");
@@ -139,44 +184,55 @@
                             for(j=1; j<=buttonlist.length; j++){
                                 buttonlist[0].append(buttonlist[j]);
                             }
-							
-							var r = JSON.parse(res.data[i].extra);
-							
 
-							var k = $("<tr>").attr("data-batch", res.data[i].batch);							
+                            var r = JSON.parse(res.data[i].extra);
+
+                            var k = $("<tr>").attr("data-batch", res.data[i].batch);
                             k.append($("<td>").html("<b>"+res.data[i].id+"</b>"));
                             k.append($("<td>").html(res.data[i].batch));
-							k.append($("<td>").html(r.reason));
-                            //k.append($("<td>").html("<a class='okla' data-batch='"+res.data[i].batch+"'><i class='fa-solid fa-arrow-right'></i></a>"));
+                            k.append($("<td>").html(r.reason));
                             k.append($("<td>").append(buttonlist[0]));
 
-							$("#read tbody").append(k);
+                            $("#read tbody").append(k);
                             $(".okla").click(function(){
                                 okla_trigger($(this));
                             })
-						}
-					}
-				}
-			});
-		}        
-		initReadList();
+                        }
+                    }
+                }
+            });
+
+            $.ajax({
+                type: 'GET',
+                dataType: "json",
+                url: "realcon.php?action=historyCount",
+                statusCode: {
+                    200: function(res) {
+                        totalPages = Math.ceil(res.total / rowsPerPage);
+                        $(".pagetotal").text(totalPages);
+                    }
+                }
+            });
+        }
+
+        initReadList(currentPage);
 
         function retrieveFromSF(){
             $("#retrieve").prop('disabled', true);
             $("#retrieve_result").html("Please wait...");
-            
+
             var action = (($("input[name='retrieve_real']").prop("checked")))?"create":"retrieve";
             var url = "realcon.php?action="+action;
 
-			$.ajax({
-				type: 'GET',
-				dataType: "json",
-				url: url,
-				data: {
-				},
-				statusCode: {
-					200: function(res) {
-						
+            $.ajax({
+                type: 'GET',
+                dataType: "json",
+                url: url,
+                data: {
+                },
+                statusCode: {
+                    200: function(res) {
+
                         console.log(res);
                         if(action=="create"){
                             var buttonlist = [];
@@ -186,14 +242,13 @@
                             for(j=1; j<=buttonlist.length; j++){
                                 buttonlist[0].append(buttonlist[j]);
                             }
-                            
-                            var k = $("<tr>").attr("data-batch", res.batch); 
+
+                            var k = $("<tr>").attr("data-batch", res.batch);
                             k.append($("<td>").html("<b>"+res.INSERT_ID+"</b>"));
                             k.append($("<td>").html(res.batch));
                             k.append($("<td>").html(res.reason));
-							//k.append($("<td>").html("<a class='okla' data-batch='"+res.batch+"'><i class='fa-solid fa-arrow-right'></i></a>"));
                             k.append($("<td>").append(buttonlist[0]));
-							$("#read tbody").prepend(k);
+                            $("#read tbody").prepend(k);
                             $(".okla").click(function(){
                                 okla_trigger($(this));
                             })
@@ -207,16 +262,14 @@
                         $("#retrieve").prop('disabled', false);
                         $("input[name='retrieve_real']").prop("checked", false);
                         $("#retrieve").text("TEST RETRIEVAL STATUS");
-					}
-				}
-			});
-		}
+                    }
+                }
+            });
+        }
 
-
-		
-		$("#retrieve").click(function(){
-			retrieveFromSF();
-		});
+        $("#retrieve").click(function(){
+            retrieveFromSF();
+        });
 
         $("input[name='retrieve_real']").on("change", function(){
             if($(this).prop("checked")){
@@ -241,10 +294,39 @@
             }
         }
 
-		
-	});
-			
-</script>
+        $("#prev-page").click(function(e) {
+            e.preventDefault();
+            if (currentPage > 1) {
+                currentPage--;
+                initReadList(currentPage);
+                $("input[name='pagenumber']").val(currentPage);
+            }
+        });
 
+        $("#next-page").click(function(e) {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+                currentPage++;
+                initReadList(currentPage);
+                $("input[name='pagenumber']").val(currentPage);
+            }
+        });
+
+        $("input[name='pagenumber']").on("change", function() {
+            currentPage = parseInt($(this).val());
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            initReadList(currentPage);
+            $(this).val(currentPage);
+        });
+
+        $("#rowsPerPage").on("change", function() {
+            rowsPerPage = parseInt($(this).val());
+            currentPage = 1;
+            initReadList(currentPage);
+            $("input[name='pagenumber']").val(currentPage);
+        });
+    });
+</script>
 
 </html>
