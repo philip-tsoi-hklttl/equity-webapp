@@ -4,3 +4,4 @@ config.php
 node_modules
 vendor
 cometd\node_modules
+batchsample.sql
