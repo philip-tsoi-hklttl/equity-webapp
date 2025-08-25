@@ -333,6 +333,15 @@ switch ($action) {
                 ]);
                 $result['INSERT_ID'] = $pdo->lastInsertId();
                 $debugObj['sql_status'] = 'SQL executed successfully';
+                
+                
+                $buildTableStatements = buildTable($result['batch']);
+                $result['buildTable']['statements'] = $buildTableStatements;
+                foreach ($buildTableStatements as $sql) {
+                    $pdo->prepare($sql)->execute();
+                }
+                $result['buildTable']['status'] = 'Build Table executed successfully';
+
             } catch (Exception $e) {
                 $debugObj['sql_error'] = $e->getMessage();
                 $result['error'] = 'SQL execution error: ' . $e->getMessage();
@@ -344,9 +353,6 @@ switch ($action) {
             $debugObj['time_start'] = $timestart;
             $debugObj['time_now'] = $timenow;
             $debugObj['time_spent'] = $timenow - $timestart;
-
-            // STEP 3.5: Run the "buildtable" script after the original script in step 3 has been completed
-            $buildTableStatements = buildTable('');
         }
 
         break;
