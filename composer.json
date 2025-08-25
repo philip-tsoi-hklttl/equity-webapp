@@ -1,7 +1,7 @@
 {
     "require": {
-        "ehaerer/php-salesforce-rest-api": "^1.1",
-        "phpoffice/phpspreadsheet": "^1.12",
+        "ehaerer/php-salesforce-rest-api": "^1.2.0",
+        "phpoffice/phpspreadsheet": "^5.0",
         "vlucas/phpdotenv": "^5.6"
     }
 }

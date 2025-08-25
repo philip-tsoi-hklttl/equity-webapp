@@ -24,6 +24,29 @@ CREATE DATABASE IF NOT EXISTS `dev_equity` DEFAULT CHARACTER SET utf8mb4 COLLATE
 USE `dev_equity`;
 
 -- --------------------------------------------------------
+-- Table structure for table `Job__c`
+CREATE TABLE IF NOT EXISTS `Job__c` (
+`Id` VARCHAR(255),
+`Name` VARCHAR(255),
+`CompanyName__c` VARCHAR(255),
+`Product__c` VARCHAR(255),
+`CS_Checked__c` VARCHAR(255),
+`Client_ID__c` VARCHAR(255),
+`Job_No__c` VARCHAR(255),
+`Project_Email__c` VARCHAR(255)
+);
+
+-- Table structure for table `Job_Item__c`
+CREATE TABLE IF NOT EXISTS `Job_Item__c` (
+`Id` VARCHAR(255),
+`Name` VARCHAR(255),
+`Bulk_Date__c` VARCHAR(255),
+`Job__c` VARCHAR(255),
+`Job_No__c` VARCHAR(255),
+`Product_Family__c` TEXT,
+`Product_Name__c` TEXT,
+`Sign_Off__c` VARCHAR(255)
+);
 
 --
 -- Table structure for table `batch`
@@ -65,23 +88,3 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-
-DELIMITER //
-
-CREATE PROCEDURE drop_non_batch_tables()
-BEGIN
-    DECLARE drop_stmt TEXT;
-    
-    SELECT CONCAT('DROP TABLE ', GROUP_CONCAT(table_name), ';') 
-    INTO drop_stmt
-    FROM information_schema.tables 
-    WHERE table_schema = 'dev_equity' 
-    AND table_name != 'batch';
-    
-    SET @stmt = drop_stmt;
-    PREPARE stmt FROM @stmt;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-END //
-
-DELIMITER ;
