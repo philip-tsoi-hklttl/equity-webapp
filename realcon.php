@@ -269,7 +269,7 @@ switch ($action) {
 
             for ($i = 1; $i <= $totalBatches; $i++) {
                 ${'workingquery_' . $i} = ${'query_' . $k};
-                ${'workingquery_' . $i} .= ' WHERE CreatedDate >= ' . $createdAt;
+                ${'workingquery_' . $i} .= ' WHERE CreatedDate > ' . $createdAt;
                 ${'workingquery_' . $i} .= ' ORDER BY CreatedDate ASC';
                 ${'workingquery_' . $i} .= ' LIMIT ' . $batchSize;
 
