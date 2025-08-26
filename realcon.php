@@ -465,7 +465,7 @@ function buildTable($v)
     }, $sfobj);
 
     foreach ($titles as $title) {
-        $sqlStatements[] = 'DROP TABLE `' . $_ENV['MYSQL_DATABASE'] . '`.`' . $title . '`;';
+        $sqlStatements[] = 'DROP TABLE IF EXISTS `' . $_ENV['MYSQL_DATABASE'] . '`.`' . $title . '`;';
     }
 
     // Generate CREATE TABLE and INSERT INTO statements
